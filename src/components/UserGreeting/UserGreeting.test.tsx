@@ -1,7 +1,7 @@
 import { describe, it, vi } from "vitest";
 import * as utils from "../../utils";
 import UserGreeting from "./UserGreeting";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 describe('User greeting with successful scenario', () => {
     const mockGreet = vi.fn(() => 'onGreet mocked')
@@ -21,14 +21,34 @@ describe('User greeting with successful scenario', () => {
     it("renders greeting and calls onGreet with 'Hello, Jane!'", async () => {
         render(<UserGreeting userId="123" onGreet={mockGreet} />);
 
-        // Wait for greeting to appear
         const greetingEl = await screen.findByText("Hello, Jane!");
         expect(greetingEl).toBeInTheDocument();
 
-        // Verify getUserGreeting was called with "Jane"
         expect(utils.getUserGreeting).toHaveBeenCalledWith("Jane");
 
-        // Verify onGreet was called with "Hello, Jane!"
         expect(mockGreet).toHaveBeenCalledWith("Hello, Jane!");
     });
 })
+
+describe("UserGreeting with error scenario", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows error message and does not call onGreet when fetch fails", async () => {
+    // Mock fetch to reject
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("Network error"));
+
+    const onGreet = vi.fn();
+
+    render(<UserGreeting userId="123" onGreet={onGreet} />);
+
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Failed to load greeting.")
+    });
+
+    expect(onGreet).not.toHaveBeenCalled();
+  });
+});
